@@ -3,7 +3,7 @@ import { db } from "../config/firebase.js";
 // CREATE TICKET
 export const createTicket = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, priority } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({ error: "Title and description required" });
@@ -12,8 +12,12 @@ export const createTicket = async (req, res) => {
     const ticket = {
       title,
       description,
-      status: "Open",
+      status: "open",
+      priority: priority || "low",
+      assignedTo: null,
+      createdBy: req.user?.email || "superadmin",
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const docRef = await db.collection("tickets").add(ticket);
@@ -21,6 +25,7 @@ export const createTicket = async (req, res) => {
     res.status(201).json({
       message: "Ticket created successfully",
       id: docRef.id,
+      ...ticket,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
