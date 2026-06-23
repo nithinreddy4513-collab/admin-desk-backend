@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 dotenv.config();
 
@@ -35,7 +36,11 @@ app.get("/test", (req, res) => {
 app.use("/api/auth", authRoutes);
 console.log("Auth routes registered");
 
-// �🔥 Ticket APIs
+// 👥 User Management APIs
+app.use("/api/users", userRoutes);
+console.log("User routes registered");
+
+// 🎫 Ticket APIs
 app.use("/api/tickets", ticketRoutes);
 console.log("Ticket routes registered");
 
