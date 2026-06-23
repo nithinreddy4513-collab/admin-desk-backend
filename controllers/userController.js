@@ -16,8 +16,7 @@ hashedPassword = await bcrypt.hash(password, 10);
       password: hashedPassword,
       role,
       employmentStatus: "Active",
-      permissions: []
-      status: "active",
+      permissions: [],
       createdAt: new Date(),
     };
 
