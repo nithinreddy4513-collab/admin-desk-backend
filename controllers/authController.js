@@ -2,6 +2,16 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { db } from "../config/firebase.js";
 
+const findUserByEmail = async (email) => {
+  let snapshot = await db.collection("users").where("email", "==", email).limit(1).get();
+  if (!snapshot.empty) return snapshot.docs[0];
+
+  snapshot = await db.collection("users").where("emailAddress", "==", email).limit(1).get();
+  if (!snapshot.empty) return snapshot.docs[0];
+
+  return null;
+};
+
 // REGISTER SUPER ADMIN (One-time setup route)
 export const registerAdmin = async (req, res) => {
   try {
@@ -13,31 +23,27 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Check if user already exists
-    const existingUser = await db
-      .collection("users")
-      .where("emailAddress", "==", email)
-      .limit(1)
-      .get();
+    const existingUser = await findUserByEmail(email);
 
-    if (!existingUser.empty) {
+    if (existingUser) {
       return res.status(409).json({
         error: "User already exists",
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create admin user
     const user = {
       fullName: name,
+      email,
       emailAddress: email,
       password: hashedPassword,
       role: "superadmin",
+      isActive: true,
       employmentStatus: "Active",
       permissions: ["manage_users", "manage_tickets", "manage_settings"],
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const docRef = await db.collection("users").add(user);
@@ -60,33 +66,25 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const snapshot = await db
-      .collection("users")
-      .where("emailAddress", "==", email)
-      .limit(1)
-      .get();
+    const userDoc = await findUserByEmail(email);
 
-    if (snapshot.empty) {
+    if (!userDoc) {
       return res.status(401).json({
         error: "Invalid credentials",
       });
     }
 
-    const userDoc = snapshot.docs[0];
     const user = userDoc.data();
 
-    // Check if user is active
-    if (user.employmentStatus !== "Active") {
+    const isActive = user.isActive !== undefined ? user.isActive : user.employmentStatus === "Active";
+    if (!isActive) {
       return res.status(403).json({
         error: "User account is inactive",
       });
     }
 
-    // Verify password
-    const passwordMatch = await bcrypt.compare(
-      password,
-      user.password
-    );
+    console.log("LOGIN V2 - DEPLOY TEST", { email, user });
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       return res.status(401).json({
@@ -97,7 +95,7 @@ export const login = async (req, res) => {
     const token = jwt.sign(
       {
         userId: userDoc.id,
-        email: user.emailAddress,
+        email: user.email || user.emailAddress,
         role: user.role,
         fullName: user.fullName,
       },

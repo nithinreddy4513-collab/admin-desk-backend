@@ -9,6 +9,7 @@ import userRoutes from "./routes/userRoutes.js";
 dotenv.config();
 
 console.log("Firebase loaded successfully 🚀");
+console.log("PROJECT:", process.env.FIREBASE_PROJECT_ID);
 console.log("Ticket routes imported");
 
 const app = express();

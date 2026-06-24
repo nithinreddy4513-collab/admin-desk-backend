@@ -78,13 +78,26 @@ export const getMyTickets = async (req, res) => {
     const snapshot = await db
       .collection("tickets")
       .where("assignedTo", "==", userId)
-      .orderBy("createdAt", "desc")
       .get();
 
-    const tickets = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const tickets = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .sort((a, b) => {
+        const getTime = (ticket) => {
+          if (!ticket.createdAt) return 0;
+          if (typeof ticket.createdAt.toMillis === "function") {
+            return ticket.createdAt.toMillis();
+          }
+          if (ticket.createdAt.seconds !== undefined) {
+            return ticket.createdAt.seconds * 1000 + (ticket.createdAt.nanoseconds || 0) / 1e6;
+          }
+          return 0;
+        };
+        return getTime(b) - getTime(a);
+      });
 
     res.status(200).json(tickets);
   } catch (error) {
