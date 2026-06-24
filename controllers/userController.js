@@ -4,20 +4,32 @@ import bcrypt from "bcryptjs";
 // CREATE USER
 export const createUser = async (req, res) => {
   try {
-    const { email, password, role, name } = req.body;
+    const { fullName, email, password, role } = req.body;
 
-    if (!email || !password || !role) {
-      return res.status(400).json({ error: "Email, password, and role required" });
+    if (!fullName || !email || !password || !role) {
+      return res.status(400).json({ error: "Full name, email, password, and role required" });
     }
-hashedPassword = await bcrypt.hash(password, 10);
+
+    const validRoles = ["superadmin", "admin", "agent"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: "Invalid role. Must be: superadmin, admin, or agent" });
+    }
+
+    // Check if user already exists
+    const existingUser = await db.collection("users").where("email", "==", email).get();
+    if (!existingUser.empty) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     const user = {
-      fullName: name,
-      emailAddress: email,
+      fullName,
+      email,
       password: hashedPassword,
       role,
-      employmentStatus: "Active",
-      permissions: [],
+      isActive: true,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const docRef = await db.collection("users").add(user);
@@ -25,6 +37,10 @@ hashedPassword = await bcrypt.hash(password, 10);
     res.status(201).json({
       message: "User created successfully",
       id: docRef.id,
+      fullName,
+      email,
+      role,
+      isActive: true,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -34,14 +50,19 @@ hashedPassword = await bcrypt.hash(password, 10);
 // GET ALL USERS
 export const getUsers = async (req, res) => {
   try {
-    const snapshot = await db.collection("users").get();
+    const snapshot = await db.collection("users").orderBy("createdAt", "desc").get();
 
-    const users = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const users = snapshot.docs.map((doc) => {
+      const userData = doc.data();
+      // Don't send password to frontend
+      delete userData.password;
+      return {
+        id: doc.id,
+        ...userData,
+      };
+    });
 
-    res.json(users);
+    res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -58,9 +79,12 @@ export const getUserById = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json({
+    const userData = doc.data();
+    delete userData.password;
+
+    res.status(200).json({
       id: doc.id,
-      ...doc.data(),
+      ...userData,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -71,16 +95,30 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, name, role } = req.body;
+    const { fullName, email, role } = req.body;
 
-    await db.collection("users").doc(id).update({
-      email,
-      name,
-      role,
+    const userRef = db.collection("users").doc(id);
+    const user = await userRef.get();
+
+    if (!user.exists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const validRoles = ["superadmin", "admin", "agent"];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ error: "Invalid role. Must be: superadmin, admin, or agent" });
+    }
+
+    const updateData = {
+      ...(fullName && { fullName }),
+      ...(email && { email }),
+      ...(role && { role }),
       updatedAt: new Date(),
-    });
+    };
 
-    res.json({
+    await userRef.update(updateData);
+
+    res.status(200).json({
       message: "User updated successfully",
     });
   } catch (error) {
@@ -88,27 +126,25 @@ export const updateUser = async (req, res) => {
   }
 };
 
-// CHANGE USER STATUS
-export const changeUserStatus = async (req, res) => {
+// DEACTIVATE USER (instead of deleting)
+export const deactivateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
 
-    const validStatuses = ["active", "inactive", "suspended"];
+    const userRef = db.collection("users").doc(id);
+    const user = await userRef.get();
 
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        error: "Invalid status. Must be: active, inactive, or suspended",
-      });
+    if (!user.exists) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    await db.collection("users").doc(id).update({
-      status,
+    await userRef.update({
+      isActive: false,
       updatedAt: new Date(),
     });
 
-    res.json({
-      message: "User status updated",
+    res.status(200).json({
+      message: "User deactivated successfully",
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

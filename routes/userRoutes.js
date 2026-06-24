@@ -4,25 +4,17 @@ import {
   getUsers,
   getUserById,
   updateUser,
-  changeUserStatus,
+  deactivateUser,
 } from "../controllers/userController.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// POST   /api/users
-router.post("/", verifyToken, createUser);
-
-// GET    /api/users
-router.get("/", verifyToken, getUsers);
-
-// GET    /api/users/:id
-router.get("/:id", verifyToken, getUserById);
-
-// PUT    /api/users/:id
-router.put("/:id", verifyToken, updateUser);
-
-// PATCH  /api/users/:id/status
-router.patch("/:id/status", verifyToken, changeUserStatus);
+// 🔒 PROTECTED ROUTES
+router.post("/", verifyToken, createUser);           // Create user
+router.get("/", verifyToken, getUsers);              // Get all users
+router.get("/:id", verifyToken, getUserById);        // Get user by ID
+router.put("/:id", verifyToken, updateUser);         // Update user
+router.patch("/:id/deactivate", verifyToken, deactivateUser); // Deactivate user
 
 export default router;
