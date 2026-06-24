@@ -83,7 +83,20 @@ export const login = async (req, res) => {
       });
     }
 
-    console.log("LOGIN V2 - DEPLOY TEST", { email, user });
+    console.log("LOGIN V2 - DEPLOY TEST");
+    console.log("LOGIN EMAIL:", email);
+    if (userDoc) {
+      const user = userDoc.data();
+      console.log("USER FOUND:", {
+        email: user.email,
+        emailAddress: user.emailAddress,
+        role: user.role,
+        hasPassword: !!user.password,
+        passwordLength: user.password?.length,
+        isActive: user.isActive,
+      });
+    }
+
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
